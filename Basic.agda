@@ -77,7 +77,11 @@ ptd-pshf-bisimP : {G : XSu} (g : gpd G) (x : X G)
                     (p : Q₀ ≡ Q₁) (hp : p ≡ cong fst (foo f₀ f₁ q₀ q₁))
                     → pshf-bisimP (λ _ → g) (λ i → p i) f₀ f₁
 μ-path (ptd-pshf-bisimP {G} g x Q₀ Q₁ f₀ f₁ q₀ q₁ p hp) =
-  let blabla = foo (τ' f₀) (τ' f₁) q₀ q₁ in
-  subst⁻ (λ p' → PathP (λ i → alpha G (P g) (p' i)) (μ f₀) (μ f₁)) (hp ∙ {!!}) (cong (snd ∘ fst) blabla)
-τ-bisim (ptd-pshf-bisimP h x Q₀ Q₁ f₀ f₁ q₀ q₁ p hp) = {!!}
+  subst⁻ (λ p' → PathP (λ i → alpha G (P g) (p' i)) (μ f₀) (μ f₁))
+  (hp ∙ subst (λ t → cong fst (sym (μ f₀ x q₀) ∙ snd (fst (fst t)) x (snd t)) ≡
+      cong (fst ∘ fst) (sym (μ (τ' f₀) x q₀) ∙ snd (fst t) x (snd t))) (foo (τ' (τ' f₀)) (τ' (τ' f₁)) q₀ q₁)
+      (cong (cong fst) (lCancel (μ f₀ x q₀)) ∙ sym (cong (cong (fst ∘ fst)) (lCancel (μ (τ' f₀) x q₀)))))
+  (cong (snd ∘ fst) (foo (τ' f₀) (τ' f₁) q₀ q₁))
+τ-bisim (ptd-pshf-bisimP g x Q₀ Q₁ f₀ f₁ q₀ q₁ p hp) =
+  ptd-pshf-bisimP (τ g) x _ _ _ _ q₀ q₁ _ (isoInvInjective ΣPathIsoPathΣ _ _ (ΣPathP (_ , symP (transport⁻-filler _ _))))
 
