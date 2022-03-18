@@ -1,8 +1,11 @@
-{-# OPTIONS --cubical --no-import-sorts --sized-types --guardedness #-}
+{-# OPTIONS --cubical --no-import-sorts --guardedness #-}
 
 open import Size
 open import Cubical.Foundations.Everything
 open import Cubical.Data.Sigma.Properties
+open import Cubical.Functions.Surjection
+open import Cubical.HITs.PropositionalTruncation.Base
+open import Cubical.HITs.PropositionalTruncation.Properties renaming (rec to prop-rec)
 
 record XSu : Type₂ where
   field
@@ -19,13 +22,10 @@ module _ (G : XSu) where
   module _ (P : (x : X G) → ptd x) where
     alpha : S G → Type₁
     alpha Q = (x : X G) (q : u G Q x) → P x ≡ (Q , q)
-
-    beta : Type₁
-    beta = Σ _ alpha
   
     nxt : XSu
     X nxt = X G
-    S nxt = beta
+    S nxt = Σ _ alpha
     u nxt Q = u G (fst Q) 
 
 record gpd (G : XSu) : Type₁ where
@@ -44,14 +44,10 @@ record pshf {G : XSu} (g : gpd G) (Q : S G) : Type₁ where
 
 open pshf
 
-repr' : {G : XSu} (g : gpd G) (x : X G) (Q : S G) (p : Q ≡ fst (P g x)) → pshf g Q
-μ (repr' g x Q p) = let ((_ , homo) , pt) = P (τ g) x in
+repr : {G : XSu} (g : gpd G) (x : X G) (Q : S G) (p : Q ≡ fst (P g x)) → pshf g Q
+μ (repr g x Q p) = let ((_ , homo) , pt) = P (τ g) x in
                     subst⁻ (alpha _ (P g)) (p ∙ cong fst (homo x pt)) homo
-τ' (repr' g x Q p) = let ((_ , homo) , pt) = P (τ g) x in
-                     repr' (τ g) x _ (ΣPathP (p ∙ cong fst (homo x pt) , symP (transport⁻-filler _ _)))
-
-repr : {G : XSu} (g : gpd G) (x : X G) → pshf g (fst (P g x))
-repr g x = repr' g x _ refl
+τ' (repr g x Q p) = repr (τ g) x _ (ΣPathP (_ , symP (transport⁻-filler _ _)))
 
 record pshf-bisimP {G : I → XSu} (g : (i : I) → gpd (G i)) (Q : (i : I) → S (G i))
   (f₀ : pshf (g i0) (Q i0)) (f₁ : pshf (g i1) (Q i1)) : Type₁ where
@@ -62,11 +58,11 @@ record pshf-bisimP {G : I → XSu} (g : (i : I) → gpd (G i)) (Q : (i : I) → 
 
 open pshf-bisimP
 
-pathP-of-bisim : {G : I → XSu} {g : (i : I) → gpd (G i)} {Q : (i : I) → S (G i)}
+bisim→pathP : {G : I → XSu} {g : (i : I) → gpd (G i)} {Q : (i : I) → S (G i)}
                  {f₀ : pshf (g i0) (Q i0)} {f₁ : pshf (g i1) (Q i1)} (h : pshf-bisimP g Q f₀ f₁)
                  → PathP (λ i → pshf (g i) (Q i)) f₀ f₁
-μ (pathP-of-bisim h i) = μ-path h i
-τ' (pathP-of-bisim h i) = pathP-of-bisim (τ-bisim h) i
+μ (bisim→pathP h i) = μ-path h i
+τ' (bisim→pathP h i) = bisim→pathP (τ-bisim h) i
 
 foo : {G : XSu} {g : gpd G} {x : X G} {Q₀ Q₁ : S G} (f₀ : pshf g Q₀) (f₂ : pshf g Q₁) (q₀ : u G Q₀ x) (q₁ : u G Q₁ x) →
          (Q₀ , q₀) ≡ (Q₁ , q₁)
@@ -85,3 +81,35 @@ ptd-pshf-bisimP : {G : XSu} (g : gpd G) (x : X G)
 τ-bisim (ptd-pshf-bisimP g x Q₀ Q₁ f₀ f₁ q₀ q₁ p hp) =
   ptd-pshf-bisimP (τ g) x _ _ _ _ q₀ q₁ _ (isoInvInjective ΣPathIsoPathΣ _ _ (ΣPathP (_ , symP (transport⁻-filler _ _))))
 
+record conGpd (G : XSu) : Type₂ where
+  field
+    BG : Type₁
+    inc : X G → BG
+    BG-to-S : BG → S G
+    pt-inc : (x : X G) → u G (BG-to-S (inc x)) x
+    ptd-prop : (x : X G) → isProp (Σ[ y ∈ BG ] u G (BG-to-S y) x)
+    merely-pointed : (y : BG) → ∥ Σ[ x ∈ X G ] u G (BG-to-S y) x ∥
+
+open conGpd
+
+conGpd→gpd : {G : XSu} → conGpd G → gpd G
+P (conGpd→gpd cg) = λ x → _ , pt-inc cg x
+τ (conGpd→gpd cg) =
+  conGpd→gpd (record
+                 { BG = BG cg
+                 ; inc = inc cg
+                 ; BG-to-S = λ y → BG-to-S cg y , λ x q → cong (λ t → BG-to-S cg (fst t) , snd t) (ptd-prop cg x _ _)
+                 ; pt-inc = pt-inc cg
+                 ; ptd-prop = ptd-prop cg
+                 ; merely-pointed = merely-pointed cg
+                 })
+
+gpd→conGpd : {G : XSu} → gpd G → conGpd G
+BG (gpd→conGpd {G} g) = Σ[ Q ∈ S G ] Σ[ f ∈ pshf g Q ] ∥ Σ[ x ∈ X G ] u G Q x ∥
+inc (gpd→conGpd g) x = fst (P g x) , repr g x _ refl , ∣ x , snd (P g x) ∣
+BG-to-S (gpd→conGpd g) y = fst y
+pt-inc (gpd→conGpd g) x = snd (P g x)
+ptd-prop (gpd→conGpd g) x ((Q₀ , f₀ , _) , q₀) ((Q₁ , f₁ , _) , q₁) =
+  ΣPathP ((ΣPathP (cong fst (foo f₀ f₁ q₀ q₁) , ΣPathP (bisim→pathP
+  (ptd-pshf-bisimP g x Q₀ Q₁ f₀ f₁ q₀ q₁ _ refl) , isProp→PathP (λ i → squash) _ _))) , cong snd (foo f₀ f₁ q₀ q₁))
+merely-pointed (gpd→conGpd g) (Q , f , hxq) = hxq
