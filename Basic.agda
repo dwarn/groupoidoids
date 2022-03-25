@@ -37,12 +37,17 @@ record gpd (G : XSu) : Type₁ where
 open gpd
 
 record pshf {G : XSu} (g : gpd G) (Q : S G) : Type₁ where
+    constructor pshf-mk
     coinductive
     field
       μ : alpha G (P g) Q
       τ' : pshf (τ g) (Q , μ)
 
 open pshf
+
+pshf-eta : {G : XSu} {g : gpd G} {Q : S G} (f : pshf g Q) → pshf-mk (μ f) (τ' f) ≡ f
+μ (pshf-eta f i) = μ f
+τ' (pshf-eta f i) = τ' f
 
 repr : {G : XSu} (g : gpd G) (x : X G) (Q : S G) (p : Q ≡ fst (P g x)) → pshf g Q
 μ (repr g x Q p) = let ((_ , homo) , pt) = P (τ g) x in
@@ -117,9 +122,12 @@ merely-pointed (con-tail cg) = merely-pointed cg
 conGpd→gpd : {G : XSu} → conGpd G → gpd G
 P (conGpd→gpd cg) = λ x → _ , pt-inc cg x
 τ (conGpd→gpd cg) = conGpd→gpd (con-tail cg)
-             
+
+completion : {G : XSu} → gpd G → Type₁
+completion {G} g = Σ[ Q ∈ S G ] Σ[ f ∈ pshf g Q ] ∥ Σ[ x ∈ X G ] u G Q x ∥
+
 gpd→conGpd : {G : XSu} → gpd G → conGpd G
-BG (gpd→conGpd {G} g) = Σ[ Q ∈ S G ] Σ[ f ∈ pshf g Q ] ∥ Σ[ x ∈ X G ] u G Q x ∥
+BG (gpd→conGpd g) = completion g
 inc (gpd→conGpd g) x = fst (P g x) , repr g x _ refl , ∣ x , snd (P g x) ∣
 BG-to-S (gpd→conGpd g) y = fst y
 pt-inc (gpd→conGpd g) x = snd (P g x)
@@ -153,10 +161,18 @@ conGpd-pathData-toPath {G} cg cg' h = EquivJ (λ BG' e → {BG-to-S' : _} →
                 ((BG-fun h , BG-fun-isEquiv h))
                 (BG-to-S-path h) _ _ _ _
 
+τ-completion : {G : XSu} (g : gpd G) → completion g ≃ completion (τ g)
+τ-completion g = isoToEquiv (iso
+    (λ y → (fst y , μ (fst (snd y))) , τ' (fst (snd y)) , snd (snd y))
+    (λ y → fst (fst y) , pshf-mk (snd (fst y)) (fst (snd y)) , snd (snd y))
+    (λ y → refl)
+    (λ y → ΣPathP (refl , ΣPathP (pshf-eta _ , refl))))
+
+
 con-tail-τ : {G : XSu} → (g : gpd G) → conGpd-pathData (con-tail (gpd→conGpd g)) (gpd→conGpd (τ g))
-BG-fun (con-tail-τ g) = {!!}
-BG-fun-isEquiv (con-tail-τ g) = {!!}
-BG-to-S-path (con-tail-τ g) = {!!}
+BG-fun (con-tail-τ g) = equivFun (τ-completion g)
+BG-fun-isEquiv (con-tail-τ g) = equivIsEquiv (τ-completion g)
+BG-to-S-path (con-tail-τ g) = λ y → ΣPathP (refl , funExt λ x → funExt λ q → {!!})
 
 gpd-eta : {G : I → XSu} → (g : gpd (G i0)) (g' : gpd (G i1))
   (p : PathP (λ i → gpd (G i)) (conGpd→gpd (gpd→conGpd g)) g') → gpd-bisimP (λ i → G i) g g'
