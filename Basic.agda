@@ -1,11 +1,11 @@
 {-# OPTIONS --cubical --no-import-sorts --guardedness #-}
 
-open import Size
 open import Cubical.Foundations.Everything
 open import Cubical.Data.Sigma.Properties
 open import Cubical.Functions.Surjection
 open import Cubical.HITs.PropositionalTruncation.Base
 open import Cubical.HITs.PropositionalTruncation.Properties renaming (rec to prop-rec)
+open import Cubical.Foundations.Equiv.Fiberwise
 
 record XSu : Type₂ where
   field
@@ -139,10 +139,29 @@ merely-pointed (gpd→conGpd g) (Q , f , hxq) = hxq
 record conGpd-pathData {G : XSu} (cg cg' : conGpd G) : Type₁ where
   field
     BG-fun : BG cg → BG cg'
-    BG-fun-isEquiv : isEquiv BG-fun    
     BG-to-S-path : (y : BG cg) → BG-to-S cg y ≡ BG-to-S cg' (BG-fun y)
 
 open conGpd-pathData
+
+fundamentalTheoremOfId' : {ℓ ℓ' : Level} {A : Type ℓ} (x : A) (Eqx : A → Type ℓ') →
+                          Eqx x → isProp (Σ A Eqx) → (y : A) → (x ≡ y) ≃ Eqx y
+fst (fundamentalTheoremOfId' x Eqx Rfl isprop y) p = subst Eqx p Rfl
+snd (fundamentalTheoremOfId' x Eqx Rfl isprop y) = fiberEquiv ((x ≡_)) Eqx (λ _ p → subst Eqx p Rfl)
+  (isEquivFromIsContr _ (isContrSingl x) (inhProp→isContr (x , Rfl) isprop)) y
+
+surjection-forall : {ℓ ℓ' ℓ'' : Level} {A : Type ℓ} {B : Type ℓ'} (P : B → Type ℓ'') (isprop : (b : B) → isProp (P b))
+                    (f : A → B) → isSurjection f → ((a : A) → P (f a)) → (b : B) → P b
+surjection-forall P isprop f fsurj Pa b = prop-rec (isprop b) (λ (a , p) → subst _ p (Pa a)) (fsurj b)
+
+inc-eq-equiv : {G : XSu} (cg : conGpd G) (x : X G) (y : BG cg) → (inc cg x ≡ y) ≃ u G (BG-to-S cg y) x
+inc-eq-equiv cg x y = fundamentalTheoremOfId' (inc cg x) _ (pt-inc cg x) (ptd-prop cg x) _
+
+inc-surjection : {G : XSu} (cg : conGpd G) → isSurjection (inc cg)
+inc-surjection cg y = prop-rec squash (λ (x , q) →  ∣ x , equivFun (invEquiv (inc-eq-equiv cg x y)) q ∣) (merely-pointed cg y)
+
+BG-fun-isEquiv : {G : XSu} {cg cg' : conGpd G} (h : conGpd-pathData cg cg') → isEquiv (BG-fun h)
+equiv-proof (BG-fun-isEquiv {G} {cg} {cg'} h) = surjection-forall (λ y → isContr (fiber (BG-fun h) y))
+  (λ _ → isPropIsContr) _ (inc-surjection cg') λ a → {!!}
 
 conGpd-pathData-toPath : {G : XSu} (cg cg' : conGpd G) → conGpd-pathData cg cg' → cg ≡ cg'
 conGpd-pathData-toPath {G} cg cg' h = EquivJ (λ BG' e → {BG-to-S' : _} →
@@ -168,11 +187,16 @@ conGpd-pathData-toPath {G} cg cg' h = EquivJ (λ BG' e → {BG-to-S' : _} →
     (λ y → refl)
     (λ y → ΣPathP (refl , ΣPathP (pshf-eta _ , refl))))
 
+BG-to-S-pshf : {G : XSu} (cg : conGpd G) (y : BG cg) → pshf (conGpd→gpd cg) (BG-to-S cg y)
+μ (BG-to-S-pshf cg y) = snd (BG-to-S (con-tail cg) y)
+τ' (BG-to-S-pshf cg y) = BG-to-S-pshf (con-tail cg) y
+
+BG→completion : {G : XSu} (cg : conGpd G) → BG cg → completion (conGpd→gpd cg)
+BG→completion cg y = BG-to-S cg y , BG-to-S-pshf cg y , merely-pointed cg y
 
 con-tail-τ : {G : XSu} → (g : gpd G) → conGpd-pathData (con-tail (gpd→conGpd g)) (gpd→conGpd (τ g))
 BG-fun (con-tail-τ g) = equivFun (τ-completion g)
-BG-fun-isEquiv (con-tail-τ g) = equivIsEquiv (τ-completion g)
-BG-to-S-path (con-tail-τ g) = λ y → ΣPathP (refl , funExt λ x → funExt λ q → {!!})
+BG-to-S-path (con-tail-τ g) = λ y → {!!} -- ΣPathP (refl , funExt λ x → funExt λ q → {!!})
 
 gpd-eta : {G : I → XSu} → (g : gpd (G i0)) (g' : gpd (G i1))
   (p : PathP (λ i → gpd (G i)) (conGpd→gpd (gpd→conGpd g)) g') → gpd-bisimP (λ i → G i) g g'
