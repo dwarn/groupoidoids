@@ -161,7 +161,10 @@ inc-surjection cg y = prop-rec squash (λ (x , q) →  ∣ x , equivFun (invEqui
 
 BG-fun-isEquiv : {G : XSu} {cg cg' : conGpd G} (h : conGpd-pathData cg cg') → isEquiv (BG-fun h)
 equiv-proof (BG-fun-isEquiv {G} {cg} {cg'} h) = surjection-forall (λ y → isContr (fiber (BG-fun h) y))
-  (λ _ → isPropIsContr) _ (inc-surjection cg') λ a → {!!}
+  (λ _ → isPropIsContr) (inc cg') (inc-surjection cg')
+  λ x → subst (λ p → isContr (Σ[ y ∈ BG cg ] p y))
+    (funExt λ y → ua (inc-eq-equiv cg x y) ∙ cong (λ Q → u G Q x) (BG-to-S-path h y) ∙ sym (ua (inc-eq-equiv cg' x (BG-fun h y))) ∙ ua (isoToEquiv symIso))
+    (isContrSingl (inc cg x))
 
 conGpd-pathData-toPath : {G : XSu} (cg cg' : conGpd G) → conGpd-pathData cg cg' → cg ≡ cg'
 conGpd-pathData-toPath {G} cg cg' h = EquivJ (λ BG' e → {BG-to-S' : _} →
@@ -194,6 +197,10 @@ BG-to-S-pshf : {G : XSu} (cg : conGpd G) (y : BG cg) → pshf (conGpd→gpd cg) 
 BG→completion : {G : XSu} (cg : conGpd G) → BG cg → completion (conGpd→gpd cg)
 BG→completion cg y = BG-to-S cg y , BG-to-S-pshf cg y , merely-pointed cg y
 
+conGpd-eta : {G : XSu} (cg : conGpd G) → conGpd-pathData cg (gpd→conGpd (conGpd→gpd cg))
+BG-fun (conGpd-eta cg) = BG→completion cg
+BG-to-S-path (conGpd-eta cg) = λ y → refl
+
 con-tail-τ : {G : XSu} → (g : gpd G) → conGpd-pathData (con-tail (gpd→conGpd g)) (gpd→conGpd (τ g))
 BG-fun (con-tail-τ g) = equivFun (τ-completion g)
 BG-to-S-path (con-tail-τ g) = λ y → {!!} -- ΣPathP (refl , funExt λ x → funExt λ q → {!!})
@@ -201,7 +208,7 @@ BG-to-S-path (con-tail-τ g) = λ y → {!!} -- ΣPathP (refl , funExt λ x → 
 gpd-eta : {G : I → XSu} → (g : gpd (G i0)) (g' : gpd (G i1))
   (p : PathP (λ i → gpd (G i)) (conGpd→gpd (gpd→conGpd g)) g') → gpd-bisimP (λ i → G i) g g'
 P-path (gpd-eta g g' p) i = P (p i) 
-τ-bisim (gpd-eta g g' p) = gpd-eta (τ g) (τ g') {!!}
+τ-bisim (gpd-eta {G} g g' p) = gpd-eta (τ g) (τ g') (subst⁻ (λ h → PathP (λ i → gpd (nxt (G i) (P (p i)))) h (τ g')) bla λ i → τ (p i))
   where bla : conGpd→gpd (gpd→conGpd (τ g)) ≡ τ (conGpd→gpd (gpd→conGpd g))
-        bla = {!!}
+        bla = cong conGpd→gpd (sym (conGpd-pathData-toPath _ _ (con-tail-τ _)))
 
