@@ -1,4 +1,4 @@
-{-# OPTIONS --cubical --no-import-sorts --guardedness #-}
+{-# OPTIONS --cubical --guardedness #-}
 
 {-
 The goal of this file is to give a coinductive definition of internal oo-groupoids in homotopy type theory.
@@ -42,24 +42,23 @@ open import Cubical.Functions.Surjection
 open import Cubical.HITs.PropositionalTruncation.Base
 open import Cubical.HITs.PropositionalTruncation.Properties renaming (rec to prop-rec)
 open import Cubical.Foundations.Equiv.Fiberwise
-
-module Basic (ℓ ℓ' ℓ'' : Level) where
+open import Lib
 
 -- an element of this record is a span of types, presented using a sigma-type
-record span : Type (ℓ-suc (ℓ-max ℓ (ℓ-max ℓ' ℓ''))) where
+record span : Type₂ where
   field
-    X : Type ℓ
-    S : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ''))
-    u : S → X → Type ℓ'
+    X : Type₀
+    S : Type₁
+    u : S → X → Type₁
 
 open span
 
-ptd : (sp : span) → X sp → Type (ℓ-max ℓ (ℓ-max ℓ' ℓ''))
+ptd : (sp : span) → X sp → Type₁
 ptd sp x = Σ[ Q ∈ S sp ] u sp Q x
 
 -- α P Q says that Q is 'modelled on P': whenever you point it, it looks like P
-α : {sp : span} (P : (x : X sp) → ptd sp x) → S sp → Type (ℓ-max ℓ (ℓ-max ℓ' ℓ''))
-α {sp} P Q = (x : X sp) (q : u sp Q x) → P x ≡ (Q , q)
+α : {sp : span} (P : (x : X sp) → ptd sp x) → S sp → Type₁
+α {sp = sp} P Q = (x : X sp) (q : u sp Q x) → P x ≡ (Q , q)
 
 -- given a span and a section of the right leg, hs P is a new span, consisting of things
 -- modelled on P
@@ -69,7 +68,7 @@ S (hs sp P) = Σ _ (α P)
 u (hs sp _) Q = u sp (fst Q) 
 
 -- our 'algebraic' description of 'a groupoid structured by a span'
-record gpd (sp : span) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
+record gpd (sp : span) : Type₁ where
   coinductive
   field
     P : (x : X sp) → ptd sp x
@@ -78,7 +77,7 @@ record gpd (sp : span) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
 open gpd
 
 -- a type of bisimulation between groupoid structures. used to characterise the path(over) types in gpd.
-record gpd-bisim (sp : I → span) (g₀ : gpd (sp i0)) (g₁ : gpd (sp i1)) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
+record gpd-bisim (sp : I → span) (g₀ : gpd (sp i0)) (g₁ : gpd (sp i1)) : Type₁ where
   coinductive
   field
     P-path : PathP (λ i → (x : X (sp i)) → ptd (sp i) x) (P g₀) (P g₁)
@@ -99,7 +98,7 @@ P (gpd-bisim→Path h i) = P-path h i
 -- pshf g Q expresses that Q 'survives' through all the spans produced by g. in cases of interest
 -- it corresponds to saying that Q has the structure of a (representable) presheaf (or, in the
 -- (-1)-truncated case, an equivalence relation).
-record pshf {sp : span} (g : gpd sp) (Q : S sp) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
+record pshf {sp : span} (g : gpd sp) (Q : S sp) : Type₁ where
     constructor mk-pshf
     coinductive
     field
@@ -108,14 +107,9 @@ record pshf {sp : span} (g : gpd sp) (Q : S sp) : Type (ℓ-max ℓ (ℓ-max ℓ
 
 open pshf
 
--- a simple eta rule for the pshf-constructor.
-pshf-eta : {sp : span} {g : gpd sp} {Q : S sp} (f : pshf g Q) → mk-pshf (μ f) (τ-pshf f) ≡ f
-μ (pshf-eta f i) = μ f
-τ-pshf (pshf-eta f i) = τ-pshf f
-
 -- bisimulations between presheaf structures (essentially repeating gpd-bisim)
 record pshf-bisim {sp : I → span} (g : (i : I) → gpd (sp i)) (Q : (i : I) → S (sp i))
-  (f₀ : pshf (g i0) (Q i0)) (f₁ : pshf (g i1) (Q i1)) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
+  (f₀ : pshf (g i0) (Q i0)) (f₁ : pshf (g i1) (Q i1)) : Type₁ where
   coinductive
   field
     μ-path : PathP (λ i → α (P (g i)) (Q i)) (μ f₀) (μ f₁)
@@ -147,11 +141,12 @@ repr : {sp : span} (g : gpd sp) (x : X sp) (Q : S sp) (p : Q ≡ fst (P g x)) �
 one-mul : {sp : span} (g : gpd sp) (x : X sp) → μ (repr g x _ refl) x (snd (P g x)) ≡ refl
 one-mul {sp} g x = let ((_ , homo) , pt) = P (τ-gpd g) x in
                    cong (λ p → subst⁻ (α (P g)) p homo x (snd (P g x))) (sym (lUnit (cong fst (homo x pt)))) ∙ 
-                   bla (homo x pt) homo ∙
+                   foo (homo x pt) homo ∙
                    lCancel _
-  where bla : {px' : ptd sp x} (pxeq : P g x ≡ px') (al : α (P g) (fst px')) →
+-- we compute a transport using the J-rule (how else to do it?)                   
+  where foo : {px' : ptd sp x} (pxeq : P g x ≡ px') (al : α (P g) (fst px')) →
                    subst⁻ (α (P g)) (cong fst pxeq) al x (snd (P g x)) ≡ al x (snd px') ∙ sym pxeq
-        bla = J (λ px' pxeq → (al : α (P g) (fst px')) → subst⁻ (α (P g)) (cong fst pxeq) al x (snd (P g x)) ≡ al x (snd px') ∙ sym pxeq)
+        foo = J (λ px' pxeq → (al : α (P g) (fst px')) → subst⁻ (α (P g)) (cong fst pxeq) al x (snd (P g x)) ≡ al x (snd px') ∙ sym pxeq)
               λ al → cong (λ f → f x (snd (P g x))) (transportRefl al) ∙ rUnit _
 
 -- given Qᵢ , qᵢ (i = 0 , 1) two presheaves pointed at x, we have P g x ≡ Qᵢ , qᵢ by μ fᵢ x qᵢ, so they are equal to each other.
@@ -164,6 +159,7 @@ pshf→Path f₀ f₁ q₀ q₁ = sym (μ f₀ _ q₀) ∙ μ f₁ _ q₁
 -- on each side (i = 0, 1) match up. so all the components match up.
 -- the proof is really less scary than it looks -- most of the code is really simple equational reasoning.
 -- as before, p and hp are redundant but we need to state the definition this way for the recursive call to make sense.
+-- we could have stated the lemma as 'every pointed presheaf equals repr' but then this seems harder to prove.
 ptd-pshf-bisim : {sp : span} (g : gpd sp) (x : X sp)
                     (Q₀ Q₁ : S sp) (f₀ : pshf g Q₀) (f₁ : pshf g Q₁) (q₀ : u sp Q₀ x) (q₁ : u sp Q₁ x)
                     (p : Q₀ ≡ Q₁) (hp : p ≡ cong fst (pshf→Path f₀ f₁ q₀ q₁))
@@ -179,133 +175,137 @@ ptd-pshf-bisim : {sp : span} (g : gpd sp) (x : X sp)
 
 -- finally, we get to give the concrete definition of structured groupoids. it is cryptomorphic to the diagrammatic
 -- definition in the docstring at the beginning of this file (with a surjectivity requirement).
-record conGpd (sp : span) : Type (ℓ-suc (ℓ-max ℓ (ℓ-max ℓ' ℓ''))) where
+record conGpd (sp : span) : Type₂ where
   constructor conGpd-mk
   field
-    BG : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ''))
-    inc : X sp → BG
-    BG-to-S : BG → S sp
-    pt-inc : (x : X sp) → u sp (BG-to-S (inc x)) x
-    ptd-prop : (x : X sp) → isProp (Σ[ y ∈ BG ] u sp (BG-to-S y) x)
-    merely-pointed : (y : BG) → ∥ Σ[ x ∈ X sp ] u sp (BG-to-S y) x ∥
+    Y : Type₁
+    arr : X sp → Y
+    Y→S : Y → S sp
+    pt-arr : (x : X sp) → u sp (Y→S (arr x)) x
+    ptd-prop : (x : X sp) → isProp (Σ[ y ∈ Y ] u sp (Y→S y) x)
+    merely-pointed : (y : Y) → ∥ Σ[ x ∈ X sp ] u sp (Y→S y) x ∥
 
 open conGpd
 
 -- every concrete groupoid has a head and a *tail*.
-τ-conGpd : {sp : span} → (cg : conGpd sp) → conGpd (hs _ λ x → BG-to-S cg (inc cg x) , pt-inc cg x)
-BG (τ-conGpd cg) = BG cg
-inc (τ-conGpd cg) = inc cg
-BG-to-S (τ-conGpd cg) = λ y → BG-to-S cg y , λ x q → cong (λ t → BG-to-S cg (fst t) , snd t) (ptd-prop cg x _ _)
-pt-inc (τ-conGpd cg) = pt-inc cg
+τ-conGpd : {sp : span} → (cg : conGpd sp) → conGpd (hs sp λ x → Y→S cg (arr cg x) , pt-arr cg x)
+Y (τ-conGpd cg) = Y cg
+arr (τ-conGpd cg) = arr cg
+Y→S (τ-conGpd cg) = λ y → Y→S cg y , λ x q → cong (λ t → Y→S cg (fst t) , snd t) (ptd-prop cg x _ _)
+pt-arr (τ-conGpd cg) = pt-arr cg
 ptd-prop (τ-conGpd cg) = ptd-prop cg
 merely-pointed (τ-conGpd cg) = merely-pointed cg
 
 -- thus a concrete groupoid gives an algebraic groupoid.
 conGpd→gpd : {sp : span} → conGpd sp → gpd sp
-P (conGpd→gpd cg) = λ x → _ , pt-inc cg x
+P (conGpd→gpd cg) = λ x → _ , pt-arr cg x
 τ-gpd (conGpd→gpd cg) = conGpd→gpd (τ-conGpd cg)
 
 -- we want to show that algebraic groupoids are also concrete groupoids. the first step is to define the underlying type,
 -- i.e. the completion / quotient of an algebraic groupoid. we can think of it as something like 'image of Yoneda embedding'.
-completion : {sp : span} → gpd sp → Type (ℓ-max ℓ (ℓ-max ℓ' ℓ''))
-completion {sp} g = Σ[ Q ∈ S sp ] Σ[ f ∈ pshf g Q ] ∥ Σ[ x ∈ X sp ] u sp Q x ∥
+completion : {sp : span} → gpd sp → Type₁
+completion {sp = sp} g = Σ[ Q ∈ S sp ] Σ[ f ∈ pshf g Q ] ∥ Σ[ x ∈ X sp ] u sp Q x ∥
 
 -- putting things together, algebraic groupoids are concrete groupoids.
 gpd→conGpd : {sp : span} → gpd sp → conGpd sp
-BG (gpd→conGpd g) = completion g
-inc (gpd→conGpd g) x = fst (P g x) , repr g x _ refl , ∣ x , snd (P g x) ∣
-BG-to-S (gpd→conGpd g) y = fst y
-pt-inc (gpd→conGpd g) x = snd (P g x)
+Y (gpd→conGpd g) = completion g
+arr (gpd→conGpd g) x = fst (P g x) , repr g x _ refl , ∣ x , snd (P g x) ∣
+Y→S (gpd→conGpd g) y = fst y
+pt-arr (gpd→conGpd g) x = snd (P g x)
 ptd-prop (gpd→conGpd g) x ((Q₀ , f₀ , _) , q₀) ((Q₁ , f₁ , _) , q₁) =
   ΣPathP ((ΣPathP (cong fst (pshf→Path f₀ f₁ q₀ q₁) , ΣPathP (pshf-bisim→Path
   (ptd-pshf-bisim g x Q₀ Q₁ f₀ f₁ q₀ q₁ _ refl) , isProp→PathP (λ i → squash) _ _))) , cong snd (pshf→Path f₀ f₁ q₀ q₁))
 merely-pointed (gpd→conGpd g) (Q , f , hxq) = hxq
 
--- we will use this for an extensionality principle for concrete groupoids. it has much fewer fields
--- than gpd→conGpd itself, which will be convenient for us.
-record conGpd-pathData {sp : span} (cg cg' : conGpd sp) : Type (ℓ-max ℓ (ℓ-max ℓ' ℓ'')) where
+-- we will use this for an extensionality principle for concrete groupoids. conveniently, it has much fewer fields
+-- than gpd→conGpd itself
+record conGpd-pathData {sp : span} (cg cg' : conGpd sp) : Type₁ where
   field
-    BG-fun : BG cg → BG cg'
-    BG-to-S-path : (y : BG cg) → BG-to-S cg y ≡ BG-to-S cg' (BG-fun y)
+    Y-fun : Y cg → Y cg'
+    Y→S-path : (y : Y cg) → Y→S cg y ≡ Y→S cg' (Y-fun y)
 
 open conGpd-pathData
 
--- Egbert Rijke's 'fundamental theorem of identity types'. it is a slight generalisation of what's
--- stated in the Cubical Agda library at the moment, but the proof is the same.
-fundamentalTheoremOfId' : {ℓ ℓ' : Level} {A : Type ℓ} (x : A) (Eqx : A → Type ℓ') →
-                          Eqx x → isProp (Σ A Eqx) → (y : A) → (x ≡ y) ≃ Eqx y
-fst (fundamentalTheoremOfId' x Eqx Rfl isprop y) p = subst Eqx p Rfl
-snd (fundamentalTheoremOfId' x Eqx Rfl isprop y) = fiberEquiv ((x ≡_)) Eqx (λ _ p → subst Eqx p Rfl)
-  (isEquivFromIsContr _ (isContrSingl x) (inhProp→isContr (x , Rfl) isprop)) y
+-- a concrete groupoid has two type families X → Y → Type: one given by arr x ≡ y and one by u.
+-- in either case the sigma type Σ[ y ∈ Y ] P x y is contractible which lets us show the type families are equivalent.
+arr-eq-equiv : {sp : span} (cg : conGpd sp) (x : X sp) (y : Y cg) → (arr cg x ≡ y) ≃ u sp (Y→S cg y) x
+arr-eq-equiv cg x y = fundamentalTheoremOfId' (arr cg x) _ (pt-arr cg x) (ptd-prop cg x) _
 
--- to prove ∀ b → P b it suffices to prove ∀ a → P (f a) for some surjection f : A ↠ B
-surjection-forall : {ℓ ℓ' ℓ'' : Level} {A : Type ℓ} {B : Type ℓ'} (P : B → Type ℓ'') (isprop : (b : B) → isProp (P b))
-                    {f : A → B} → isSurjection f → ((a : A) → P (f a)) → (b : B) → P b
-surjection-forall P isprop fsurj Pa b = prop-rec (isprop b) (λ (a , p) → subst _ p (Pa a)) (fsurj b)
+arr-surjection : {sp : span} (cg : conGpd sp) → isSurjection (arr cg)
+arr-surjection cg y = prop-rec squash (λ (x , q) →  ∣ x , equivFun (invEquiv (arr-eq-equiv cg x y)) q ∣) (merely-pointed cg y)
 
-inc-eq-equiv : {sp : span} (cg : conGpd sp) (x : X sp) (y : BG cg) → (inc cg x ≡ y) ≃ u sp (BG-to-S cg y) x
-inc-eq-equiv cg x y = fundamentalTheoremOfId' (inc cg x) _ (pt-inc cg x) (ptd-prop cg x) _
-
-inc-surjection : {sp : span} (cg : conGpd sp) → isSurjection (inc cg)
-inc-surjection cg y = prop-rec squash (λ (x , q) →  ∣ x , equivFun (invEquiv (inc-eq-equiv cg x y)) q ∣) (merely-pointed cg y)
-
-BG-fun-isEquiv : {sp : span} {cg cg' : conGpd sp} (h : conGpd-pathData cg cg') → isEquiv (BG-fun h)
-equiv-proof (BG-fun-isEquiv {sp} {cg} {cg'} h) = surjection-forall (λ y → isContr (fiber (BG-fun h) y))
-  (λ _ → isPropIsContr) (inc-surjection cg') λ x → subst (λ p → isContr (Σ[ y ∈ BG cg ] p y))
-    (funExt λ y → ua (inc-eq-equiv cg x y ∙ₑ
-                       pathToEquiv (cong (λ Q → u sp Q x) (BG-to-S-path h y)) ∙ₑ
-                       invEquiv (inc-eq-equiv cg' x (BG-fun h y)) ∙ₑ
-                       isoToEquiv symIso)) 
-    (isContrSingl (inc cg x))
+Y-fun-isEquiv : {sp : span} {cg cg' : conGpd sp} (h : conGpd-pathData cg cg') → isEquiv (Y-fun h)
+equiv-proof (Y-fun-isEquiv {sp} {cg} {cg'} h) = surjection-forall (λ y → isContr (fiber (Y-fun h) y))
+  (λ _ → isPropIsContr) (arr-surjection cg') λ x → subst (λ p → isContr (Σ[ y ∈ Y cg ] p y))
+    (funExt λ y → ua (arr-eq-equiv cg x y ∘ₑ
+                       ((pathToEquiv (cong (λ Q → u sp Q x) (Y→S-path h y))) ∘ₑ
+                       ((invEquiv (arr-eq-equiv cg' x (Y-fun h y))) ∘ₑ
+                       (isoToEquiv symIso) ))))
+    (isContrSingl (arr cg x))
     
 -- putting everything together, we get the desired extensionality principle for conGpd.
 -- the proof is less scary than it looks -- most of the code is just spelling out what type families we
 -- are transporting along.
-conGpd-pathData-toPath : {sp : span} (cg cg' : conGpd sp) → conGpd-pathData cg cg' → cg ≡ cg'
-conGpd-pathData-toPath {sp} cg cg' h = EquivJ (λ BG' e → {BG-to-S' : _} →
-     (BG-to-S-path' : (y : BG') → BG-to-S' y ≡ BG-to-S cg' (equivFun e y)) →
-     (inc' : _) → (pt-inc' : _) → (ptd-prop' : _) → (merely-pointed' : _) →
-                    conGpd-mk BG' inc' BG-to-S' pt-inc' ptd-prop' merely-pointed' ≡ cg')
-                (λ {BG-to-S'} BG-to-S-path' inc' →
-                subst⁻ (λ BG-to-S'' → (pt-inc' : _) → (ptd-prop' : _) → (merely-pointed' : _) →
-                       conGpd-mk (BG cg') inc' BG-to-S'' pt-inc' ptd-prop' merely-pointed' ≡ cg')
-                (funExt BG-to-S-path')
-                λ pt-inc' ptd-prop' merely-pointed' i →
-                conGpd-mk (BG cg') (λ x → cong fst (ptd-prop cg' x (inc' x , pt-inc' x) (inc cg' x , pt-inc cg' x)) i)
-                (BG-to-S cg') (λ x → cong snd (ptd-prop cg' x (inc' x , pt-inc' x) (inc cg' x  , pt-inc cg' x)) i)
+conGpd-pathData-toPath : {sp : span} {cg cg' : conGpd sp} → conGpd-pathData cg cg' → cg ≡ cg'
+conGpd-pathData-toPath {sp} {cg} {cg'} h = EquivJ (λ Y' e → {Y→S' : _} →
+     (Y→S-path' : (y : Y') → Y→S' y ≡ Y→S cg' (equivFun e y)) →
+     (arr' : _) → (pt-arr' : _) → (ptd-prop' : _) → (merely-pointed' : _) →
+                    conGpd-mk Y' arr' Y→S' pt-arr' ptd-prop' merely-pointed' ≡ cg')
+                (λ {Y→S'} Y→S-path' arr' →
+                subst⁻ (λ Y→S'' → (pt-arr' : _) → (ptd-prop' : _) → (merely-pointed' : _) →
+                       conGpd-mk (Y cg') arr' Y→S'' pt-arr' ptd-prop' merely-pointed' ≡ cg')
+                (funExt Y→S-path')
+                λ pt-arr' ptd-prop' merely-pointed' i →
+                conGpd-mk (Y cg') (λ x → cong fst (ptd-prop cg' x (arr' x , pt-arr' x) (arr cg' x , pt-arr cg' x)) i)
+                (Y→S cg') (λ x → cong snd (ptd-prop cg' x (arr' x , pt-arr' x) (arr cg' x  , pt-arr cg' x)) i)
                 (λ x → isPropIsProp (ptd-prop' x) (ptd-prop cg' x) i)
                 λ y → squash (merely-pointed' y) (merely-pointed cg' y) i)
-                ((BG-fun h , BG-fun-isEquiv h))
-                (BG-to-S-path h) _ _ _ _
+                ((Y-fun h , Y-fun-isEquiv h))
+                (Y→S-path h) _ _ _ _
+  
+Y→S-pshf : {sp : span} (cg : conGpd sp) (y : Y cg) → pshf (conGpd→gpd cg) (Y→S cg y)
+μ (Y→S-pshf cg y) = snd (Y→S (τ-conGpd cg) y)
+τ-pshf (Y→S-pshf cg y) = Y→S-pshf (τ-conGpd cg) y
 
--- by 'associativity of records', the completion of a groupoid is the completion of its tail.
--- (one can think of this also as saying the inverse limit of a sequence is the inverse limit of the tail.)
-compl≃compl-τ : {sp : span} (g : gpd sp) → completion g ≃ completion (τ-gpd g)
-compl≃compl-τ g = isoToEquiv (iso
-    (λ y → (fst y , μ (fst (snd y))) , τ-pshf (fst (snd y)) , snd (snd y))
-    (λ y → fst (fst y) , mk-pshf (snd (fst y)) (fst (snd y)) , snd (snd y))
-    (λ y → refl)
-    (λ y → ΣPathP (refl , ΣPathP (pshf-eta _ , refl))))
-
-BG-to-S-pshf : {sp : span} (cg : conGpd sp) (y : BG cg) → pshf (conGpd→gpd cg) (BG-to-S cg y)
-μ (BG-to-S-pshf cg y) = snd (BG-to-S (τ-conGpd cg) y)
-τ-pshf (BG-to-S-pshf cg y) = BG-to-S-pshf (τ-conGpd cg) y
-
+-- every concrete groupoid is the completion of an algebraic groupoid
 conGpd-eta : {sp : span} (cg : conGpd sp) → conGpd-pathData cg (gpd→conGpd (conGpd→gpd cg))
-BG-fun (conGpd-eta cg) y = BG-to-S cg y , BG-to-S-pshf cg y , merely-pointed cg y
-BG-to-S-path (conGpd-eta cg) = λ y → refl
+Y-fun (conGpd-eta cg) y = Y→S cg y , Y→S-pshf cg y , merely-pointed cg y
+Y→S-path (conGpd-eta cg) = λ y → refl
 
-τ-conGpd-τ : {sp : span} → (g : gpd sp) → conGpd-pathData (τ-conGpd (gpd→conGpd g)) (gpd→conGpd (τ-gpd g))
-BG-fun (τ-conGpd-τ g) = equivFun (compl≃compl-τ g)
-BG-to-S-path (τ-conGpd-τ g) = λ (Q , (f , _)) → ΣPathP (refl , funExt λ x → funExt λ q →
- let bla : pshf→Path (repr g x _ refl) f (snd (P g x)) q ≡ μ f x q
-     bla = cong (λ p → sym p ∙ μ f x q) (one-mul g x) ∙ sym (lUnit _)
- in bla) 
+-- the map gpd→conGpd respects tails
+gpd→conGpd-τ : {sp : span} → (g : gpd sp) → conGpd-pathData (τ-conGpd (gpd→conGpd g)) (gpd→conGpd (τ-gpd g))
+Y-fun (gpd→conGpd-τ g) (Q , (f , hq)) = (Q , μ f) , τ-pshf f , hq
+Y→S-path (gpd→conGpd-τ g) = λ (Q , (f , _)) → ΣPathP (refl , funExt λ x → funExt λ q →
+                             cong (λ p → sym p ∙ μ f x q) (one-mul g x) ∙ sym (lUnit _))
 
+-- every algebraic groupoid is the kernel of a concrete groupoid
 gpd-eta : {sp : I → span} → (g : gpd (sp i0)) (g' : gpd (sp i1))
   (p : PathP (λ i → gpd (sp i)) (conGpd→gpd (gpd→conGpd g)) g') → gpd-bisim (λ i → sp i) g g'
 P-path (gpd-eta g g' p) i = P (p i) 
-τ-gpd-bisim (gpd-eta {sp} g g' p) = gpd-eta (τ-gpd g) (τ-gpd g') (subst⁻ (λ h → PathP (λ i → gpd (hs _ (P (p i)))) h (τ-gpd g')) bla λ i → τ-gpd (p i))
-  where bla : conGpd→gpd (gpd→conGpd (τ-gpd g)) ≡ τ-gpd (conGpd→gpd (gpd→conGpd g))
-        bla = cong conGpd→gpd (sym (conGpd-pathData-toPath _ _ (τ-conGpd-τ _)))
+τ-gpd-bisim (gpd-eta {sp} g g' p) = gpd-eta (τ-gpd g) (τ-gpd g')
+                                    (subst⁻ (λ h → PathP (λ i → gpd (hs _ (P (p i)))) h (τ-gpd g'))
+                                     (cong conGpd→gpd (sym (conGpd-pathData-toPath (gpd→conGpd-τ _))))
+                                     λ i → τ-gpd (p i))
 
+gpd≃conGpd : {sp : span} → gpd sp ≃ conGpd sp
+gpd≃conGpd = isoToEquiv (iso gpd→conGpd
+                             conGpd→gpd
+                             (λ cg → sym (conGpd-pathData-toPath (conGpd-eta cg)))
+                             λ g → sym (gpd-bisim→Path (gpd-eta g _ refl)))
+
+terminal-span : Type₀ → span
+X (terminal-span X) = X
+S (terminal-span X) = X → Type₀
+u (terminal-span X) Q x = Lift (Q x)
+
+-- we'd like to show that concrete groupoids structured by the terminal span are simply surjections.
+-- currently the formalisation is stalled by universe issues (one will need a good notion of 'small' types
+-- and the principle of replacement coming from the join construction)
+{-
+conGpd-terminal-span : (X : Type₀) → conGpd (terminal-span X) ≃ (Σ[ Y ∈ Type₁ ] X ↠ Y)
+conGpd-terminal-span X = isoToEquiv (iso
+  (λ cg → Y cg , arr cg , arr-surjection cg)
+  (λ (Y , (f , fsurj)) → conGpd-mk Y f (λ y x → {!f x ≡ y!}) {!!} {!!} {!!})
+  {!!}
+  {!!})
+-}
